@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool, defineTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, generateCSSSelector } from './utils.js';
 
 const snapshot = defineTool({
   capability: 'core',
@@ -63,11 +63,17 @@ const click = defineTabTool({
     const button = params.button;
     const buttonAttr = button ? `{ button: '${button}' }` : '';
 
-    if (params.doubleClick)
-      response.addCode(`await page.${await generateLocator(locator)}.dblclick(${buttonAttr});`);
-    else
-      response.addCode(`await page.${await generateLocator(locator)}.click(${buttonAttr});`);
+    // Generate the selector information
+    const generatedSelector = await generateLocator(locator);
+    const cssSelector = await generateCSSSelector(locator);
 
+    if (params.doubleClick)
+      response.addCode(`await page.${generatedSelector}.dblclick(${buttonAttr});`);
+    else
+      response.addCode(`await page.${generatedSelector}.click(${buttonAttr});`);
+
+    // Add selector information to the result
+    response.addResult(`Clicked element with selector: ${cssSelector}`);
 
     await tab.waitForCompletion(async () => {
       if (params.doubleClick)

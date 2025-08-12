@@ -80,6 +80,131 @@ export async function generateLocator(locator: playwright.Locator): Promise<stri
   }
 }
 
+export async function generateCSSSelector(locator: playwright.Locator): Promise<string> {
+  try {
+    // Try to get CSS selector from the element using improved logic
+    const cssSelector = await locator.evaluate((el: Element) => {
+      const attrPriority = [
+        'data-test-automation-id',
+        'aria-label',
+        'data-title',
+        'name',
+        'alt',
+        'title',
+        'role',
+      ];
+
+      const escapeSelector = (value: string): string => {
+        return CSS.escape(value);
+      };
+
+      const isNoiseClass = (className: string): boolean => {
+        return (
+          /^(?:js-|_|ng-|react-)/.test(className) ||
+          className.length > 15 ||
+          /\d{4,}/.test(className)
+        );
+      };
+
+      const generateNthPath = (element: Element): string => {
+        let rootAncestor: Element | null = null;
+        let current: Element | null = element;
+
+        // Find the nearest ancestor with a priority attribute
+        while (current && current !== document.body) {
+          const foundAttr = attrPriority.find(attr =>
+            current?.hasAttribute(attr),
+          );
+          if (foundAttr) {
+            rootAncestor = current;
+            break;
+          }
+          current = current.parentElement;
+        }
+
+        if (rootAncestor) {
+          const pathParts: string[] = [];
+          current = element;
+
+          // Build path from element to root ancestor
+          while (current && current !== rootAncestor && current.parentElement) {
+            const siblings = Array.from(current.parentElement.children);
+            const index = siblings.indexOf(current) + 1;
+            pathParts.unshift(
+              `${current.tagName.toLowerCase()}:nth-child(${index})`,
+            );
+            current = current.parentElement;
+          }
+
+          const foundAttr = attrPriority.find(attr =>
+            rootAncestor?.hasAttribute(attr),
+          )!;
+          const attrValue = rootAncestor.getAttribute(foundAttr)!;
+          const escapedValue = escapeSelector(attrValue);
+          const rootSelector = `${rootAncestor.tagName.toLowerCase()}[${foundAttr}="${escapedValue}"]`;
+
+          return pathParts.length === 0
+            ? rootSelector
+            : `${rootSelector} > ${pathParts.join(' > ')}`;
+        }
+
+        // Fallback to full path if no priority attribute ancestor found
+        const path: string[] = [];
+        current = element;
+        while (current && current !== document.body) {
+          const siblings = Array.from(current.parentElement?.children || []);
+          const index = siblings.indexOf(current) + 1;
+          path.unshift(`${current.tagName.toLowerCase()}:nth-child(${index})`);
+          current = current.parentElement;
+        }
+        return path.join(' > ') || element.tagName.toLowerCase();
+      };
+
+      const buildCSSSelector = (element: Element): string => {
+        // Priority 1: Check for priority attributes
+        for (const attr of attrPriority) {
+          const value = element.getAttribute(attr);
+          if (value)
+            return `${element.tagName.toLowerCase()}[${attr}="${escapeSelector(value)}"]`;
+        }
+
+        // Priority 2: Use ID if it's unique
+        if (element.id) {
+          const escapedId = escapeSelector(element.id);
+          if (document.querySelectorAll(`#${escapedId}`).length === 1)
+            return `#${escapedId}`;
+        }
+
+        // Priority 3: Use meaningful classes
+        const meaningfulClasses = Array.from((element as HTMLElement).classList || [])
+          .filter(c => !isNoiseClass(c))
+          .map(c => escapeSelector(c));
+
+        if (meaningfulClasses.length > 0) {
+          const classSelector = `${element.tagName.toLowerCase()}.${meaningfulClasses.join('.')}`;
+          if (document.querySelectorAll(classSelector).length <= 3)
+            return classSelector;
+        }
+
+        // Priority 4: Generate nth-child path
+        return generateNthPath(element);
+      };
+
+      return buildCSSSelector(el);
+    });
+
+    return cssSelector;
+  } catch (e) {
+    // Fallback to using the resolved selector if available
+    try {
+      const { resolvedSelector } = await (locator as any)._resolveSelector();
+      return resolvedSelector || '';
+    } catch {
+      return '';
+    }
+  }
+}
+
 export async function callOnPageNoTrace<T>(page: playwright.Page, callback: (page: playwright.Page) => Promise<T>): Promise<T> {
   return await (page as any)._wrapApiCall(() => callback(page), { internal: true });
 }
