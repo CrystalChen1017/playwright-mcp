@@ -131,7 +131,7 @@ export async function generateCSSSelector(locator: playwright.Locator): Promise<
             const siblings = Array.from(current.parentElement.children);
             const index = siblings.indexOf(current) + 1;
             pathParts.unshift(
-              `${current.tagName.toLowerCase()}:nth-child(${index})`,
+                `${current.tagName.toLowerCase()}:nth-child(${index})`,
             );
             current = current.parentElement;
           }
@@ -177,8 +177,8 @@ export async function generateCSSSelector(locator: playwright.Locator): Promise<
 
         // Priority 3: Use meaningful classes
         const meaningfulClasses = Array.from((element as HTMLElement).classList || [])
-          .filter(c => !isNoiseClass(c))
-          .map(c => escapeSelector(c));
+            .filter(c => !isNoiseClass(c))
+            .map(c => escapeSelector(c));
 
         if (meaningfulClasses.length > 0) {
           const classSelector = `${element.tagName.toLowerCase()}.${meaningfulClasses.join('.')}`;

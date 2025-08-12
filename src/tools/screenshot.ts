@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, generateCSSSelector } from './utils.js';
 
 import type * as playwright from 'playwright';
 
@@ -67,6 +67,10 @@ const screenshot = defineTabTool({
 
     // Only get snapshot when element screenshot is needed
     const locator = params.ref ? await tab.refLocator({ element: params.element || '', ref: params.ref }) : null;
+    let cssSelector: string | undefined;
+
+    if (locator)
+      cssSelector = await generateCSSSelector(locator);
 
     if (locator)
       response.addCode(`await page.${await generateLocator(locator)}.screenshot(${javascript.formatObject(options)});`);
@@ -75,6 +79,10 @@ const screenshot = defineTabTool({
 
     const buffer = locator ? await locator.screenshot(options) : await tab.page.screenshot(options);
     response.addResult(`Took the ${screenshotTarget} screenshot and saved it as ${fileName}`);
+
+    // Add selector information if element screenshot was taken
+    if (cssSelector)
+      response.addResult(`Element screenshot selector: ${cssSelector}`);
 
     // https://github.com/microsoft/playwright-mcp/issues/817
     // Never return large images to LLM, saving them to the file system is enough.

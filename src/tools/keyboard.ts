@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool } from './tool.js';
 import { elementSchema } from './snapshot.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, generateCSSSelector } from './utils.js';
 import * as javascript from '../javascript.js';
 
 const pressKey = defineTabTool({
@@ -64,6 +64,9 @@ const type = defineTabTool({
   handle: async (tab, params, response) => {
     const locator = await tab.refLocator(params);
 
+    // Generate CSS selector for the element
+    const cssSelector = await generateCSSSelector(locator);
+
     await tab.waitForCompletion(async () => {
       if (params.slowly) {
         response.setIncludeSnapshot();
@@ -80,6 +83,10 @@ const type = defineTabTool({
         await locator.press('Enter');
       }
     });
+
+    // Add selector information to the result
+    const action = params.submit ? 'typed and submitted' : 'typed';
+    response.addResult(`${action} text "${params.text}" in element with selector: ${cssSelector}`);
   },
 });
 

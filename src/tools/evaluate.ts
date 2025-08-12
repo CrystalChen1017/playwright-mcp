@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, generateCSSSelector } from './utils.js';
 
 import type * as playwright from 'playwright';
 
@@ -42,8 +42,11 @@ const evaluate = defineTabTool({
     response.setIncludeSnapshot();
 
     let locator: playwright.Locator | undefined;
+    let cssSelector: string | undefined;
+
     if (params.ref && params.element) {
       locator = await tab.refLocator({ ref: params.ref, element: params.element });
+      cssSelector = await generateCSSSelector(locator);
       response.addCode(`await page.${await generateLocator(locator)}.evaluate(${javascript.quote(params.function)});`);
     } else {
       response.addCode(`await page.evaluate(${javascript.quote(params.function)});`);
@@ -53,6 +56,10 @@ const evaluate = defineTabTool({
       const receiver = locator ?? tab.page as any;
       const result = await receiver._evaluateFunction(params.function);
       response.addResult(JSON.stringify(result, null, 2) || 'undefined');
+
+      // Add selector information if element was specified
+      if (cssSelector)
+        response.addResult(`Evaluated JavaScript on element with selector: ${cssSelector}`);
     });
   },
 });

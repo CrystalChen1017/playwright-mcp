@@ -107,11 +107,18 @@ const drag = defineTabTool({
       { ref: params.endRef, element: params.endElement },
     ]);
 
+    // Generate CSS selectors for both elements
+    const startCssSelector = await generateCSSSelector(startLocator);
+    const endCssSelector = await generateCSSSelector(endLocator);
+
     await tab.waitForCompletion(async () => {
       await startLocator.dragTo(endLocator);
     });
 
     response.addCode(`await page.${await generateLocator(startLocator)}.dragTo(page.${await generateLocator(endLocator)});`);
+
+    // Add selector information to the result
+    response.addResult(`Dragged from element with selector: ${startCssSelector} to element with selector: ${endCssSelector}`);
   },
 });
 
@@ -129,11 +136,18 @@ const hover = defineTabTool({
     response.setIncludeSnapshot();
 
     const locator = await tab.refLocator(params);
+
+    // Generate CSS selector for the element
+    const cssSelector = await generateCSSSelector(locator);
+
     response.addCode(`await page.${await generateLocator(locator)}.hover();`);
 
     await tab.waitForCompletion(async () => {
       await locator.hover();
     });
+
+    // Add selector information to the result
+    response.addResult(`Hovered over element with selector: ${cssSelector}`);
   },
 });
 
@@ -155,11 +169,18 @@ const selectOption = defineTabTool({
     response.setIncludeSnapshot();
 
     const locator = await tab.refLocator(params);
+
+    // Generate CSS selector for the element
+    const cssSelector = await generateCSSSelector(locator);
+
     response.addCode(`await page.${await generateLocator(locator)}.selectOption(${javascript.formatObject(params.values)});`);
 
     await tab.waitForCompletion(async () => {
       await locator.selectOption(params.values);
     });
+
+    // Add selector information to the result
+    response.addResult(`Selected option(s) ${params.values.join(', ')} in element with selector: ${cssSelector}`);
   },
 });
 
