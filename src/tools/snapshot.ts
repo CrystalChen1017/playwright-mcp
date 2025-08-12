@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool, defineTool } from './tool.js';
 import * as javascript from '../javascript.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, refToSelector } from './utils.js';
 
 const snapshot = defineTool({
   capability: 'core',
@@ -68,13 +68,23 @@ const click = defineTabTool({
     else
       response.addCode(`await page.${await generateLocator(locator)}.click(${buttonAttr});`);
 
+    let elementSelector: string | undefined;
 
     await tab.waitForCompletion(async () => {
+      try {
+        elementSelector = await refToSelector(params.ref, tab.page);
+      } catch (error) {
+        throw new Error(`Element with ref ${params.ref} not found`);
+      }
+
       if (params.doubleClick)
         await locator.dblclick({ button });
       else
         await locator.click({ button });
     });
+
+    if (elementSelector)
+      response.addResult(`Clicked element with selector: ${elementSelector}`);
   },
 });
 
@@ -101,11 +111,24 @@ const drag = defineTabTool({
       { ref: params.endRef, element: params.endElement },
     ]);
 
+    let startElementSelector: string | undefined;
+    let endElementSelector: string | undefined;
+
     await tab.waitForCompletion(async () => {
+      try {
+        startElementSelector = await refToSelector(params.startRef, tab.page);
+        endElementSelector = await refToSelector(params.endRef, tab.page);
+      } catch (error) {
+        throw new Error(`Element with ref ${params.startRef} or ${params.endRef} not found`);
+      }
+
       await startLocator.dragTo(endLocator);
     });
 
     response.addCode(`await page.${await generateLocator(startLocator)}.dragTo(page.${await generateLocator(endLocator)});`);
+
+    if (startElementSelector && endElementSelector)
+      response.addResult(`Dragged from element with selector: ${startElementSelector} to element with selector: ${endElementSelector}`);
   },
 });
 
@@ -123,11 +146,22 @@ const hover = defineTabTool({
     response.setIncludeSnapshot();
 
     const locator = await tab.refLocator(params);
-    response.addCode(`await page.${await generateLocator(locator)}.hover();`);
+    let elementSelector: string | undefined;
 
     await tab.waitForCompletion(async () => {
+      try {
+        elementSelector = await refToSelector(params.ref, tab.page);
+      } catch (error) {
+        throw new Error(`Element with ref ${params.ref} not found`);
+      }
+
       await locator.hover();
     });
+
+    response.addCode(`await page.${await generateLocator(locator)}.hover();`);
+
+    if (elementSelector)
+      response.addResult(`Hovered over element with selector: ${elementSelector}`);
   },
 });
 

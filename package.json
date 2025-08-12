@@ -17,6 +17,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "tsc",
+    "start": "node cli.js",
+    "dev": "tsc && node cli.js",
     "lint": "npm run update-readme && eslint . && tsc --noEmit",
     "lint-fix": "eslint . --fix",
     "update-readme": "node utils/update-readme.js",

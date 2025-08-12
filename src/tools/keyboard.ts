@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { defineTabTool } from './tool.js';
 import { elementSchema } from './snapshot.js';
-import { generateLocator } from './utils.js';
+import { generateLocator, refToSelector } from './utils.js';
 import * as javascript from '../javascript.js';
 
 const pressKey = defineTabTool({
@@ -63,8 +63,14 @@ const type = defineTabTool({
 
   handle: async (tab, params, response) => {
     const locator = await tab.refLocator(params);
+    let elementSelector: string | undefined;
 
     await tab.waitForCompletion(async () => {
+      try {
+        elementSelector = await refToSelector(params.ref, tab.page);
+      } catch (error) {
+        throw new Error(`Element with ref ${params.ref} not found`);
+      }
       if (params.slowly) {
         response.setIncludeSnapshot();
         response.addCode(`await page.${await generateLocator(locator)}.pressSequentially(${javascript.quote(params.text)});`);
@@ -80,6 +86,10 @@ const type = defineTabTool({
         await locator.press('Enter');
       }
     });
+
+    if (elementSelector)
+      response.addResult(`Typed text into element with selector: ${elementSelector}`);
+
   },
 });
 
